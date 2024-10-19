@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Блог</title>
+</head>
+<body>
+    <h1>Блог</h1>
+
+    <h2>Регистрация</h2>
+    <form id="registerForm">
+        <input type="text" id="registerUsername" placeholder="Имя пользователя" required>
+        <input type="password" id="registerPassword" placeholder="Пароль" required>
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+
+    <h2>Вход</h2>
+    <form id="loginForm">
+        <input type="text" id="loginUsername" placeholder="Имя пользователя" required>
+        <input type="password" id="loginPassword" placeholder="Пароль" required>
+        <button type="submit">Войти</button>
+    </form>
+
+    <h2>Добавить пост</h2>
+    <form id="postForm">
+        <input type="text" id="title" placeholder="Заголовок" required>
+        <textarea id="content" placeholder="Содержимое" required></textarea>
+        <button type="submit">Добавить</button>
+    </form>
+
+    <h2>Существующие посты</h2>
+    <div id="posts"></div>
+
+    <script>
+        let token = '';
+
+        // Функция для загрузки постов
+        async function loadPosts() {
+            const response = await fetch('/posts');
+            const posts = await response.json();
+            const postsDiv = document.getElementById('posts');
+            postsDiv.innerHTML = '';
+            posts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.innerHTML = `<h3>${post.title}</h3><p>${post.content}</p><small>${new Date(post.created_at).toLocaleString()}</small>`;
+                postsDiv.appendChild(postElement);
+            });
+        }
+
+        // Обработчик отправки формы регистрации
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+
+            await fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            // Очистка формы
+            document.getElementById('registerForm').reset();
+        });
+
+        // Обработчик отправки формы входа
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                token = data.token; // Сохранение токена
+                alert("Успешный вход!");
+            } else {
+                alert("Ошибка входа: неверные учетные данные.");
+            }
+
+            // Очистка формы
+            document.getElementById('loginForm').reset();
+        });
+
+        // Обработчик отправки формы добавления поста
+        document.getElementById('postForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+
+            await fetch('/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token, // Добавление токена в заголовок
+                },
+                body: JSON.stringify({ title, content }),
+            });
+
+            // Очистка формы и перезагрузка постов
+            document.getElementById('postForm').reset();
+            loadPosts();
+        });
+
+        // Загрузка постов при загрузке страницы
+        loadPosts();
+
+    </script>
+</body>
+</html>
+

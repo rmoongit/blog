@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Блог</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+        #authSection {
+            width: 30%;
+        }
+        #postSection {
+            width: 65%;
+        }
+    </style>
+</head>
+<body>
+    <div id="postSection">
+        <h2>Посты:</h2>
+        <div id="posts"></div>
+
+        <h2>Добавить пост</h2>
+        <form id="postForm" style="display: none;">
+            <input type="text" id="title" placeholder="Заголовок" required>
+            <textarea id="content" placeholder="Содержимое" required></textarea>
+            <button type="submit">Добавить</button>
+        </form>
+    </div>
+
+    <div id="authSection">
+        <h2 id="welcomeMessage" style="display: none;"></h2>
+        <h2>Регистрация</h2>
+        <form id="registerForm">
+            <input type="text" id="registerUsername" placeholder="Имя пользователя" required>
+            <input type="password" id="registerPassword" placeholder="Пароль" required>
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+
+        <h2>Вход</h2>
+        <form id="loginForm">
+            <input type="text" id="loginUsername" placeholder="Имя пользователя" required>
+            <input type="password" id="loginPassword" placeholder="Пароль" required>
+            <button type="submit">Войти</button>
+        </form>
+
+        <button id="logoutButton" style="display: none;">Выйти</button>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token') || ''; // Загрузка токена из localStorage
+        let currentUser = localStorage.getItem('currentUser') || ''; // Загрузка имени пользователя из localStorage
+
+        // Функция для загрузки постов
+        async function loadPosts() {
+            try {
+                const response = await fetch('/posts');
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки постов');
+                }
+                const posts = await response.json();
+                const postsDiv = document.getElementById('posts');
+                postsDiv.innerHTML = '';
+                posts.forEach(post => {
+                    const postElement = document.createElement('div');
+                    postElement.innerHTML = `<h3>${post.title}</h3><p>${post.content}</p><small>${new Date(post.created_at).toLocaleString()}</small>`;
+                    postsDiv.appendChild(postElement);
+                });
+            } catch (error) {
+                console.error(error);
+                alert('Не удалось загрузить посты. Проверьте консоль для получения дополнительной информации.');
+            }
+        }
+
+        // Функция для обновления интерфейса
+        function updateUI() {
+            if (currentUser) {
+                document.getElementById('welcomeMessage').innerText = `Добро пожаловать, ${currentUser}!`;
+                document.getElementById('welcomeMessage').style.display = 'block';
+                document.getElementById('authSection').style.display = 'none';
+               
+                document.getElementById('logoutButton').style.display = 'block';
+                document.getElementById('postForm').style.display = 'block';
+            } else {
+                document.getElementById('welcomeMessage').style.display = 'none';
+                document.getElementById('authSection').style.display = 'block';
+                document.getElementById('logoutButton').style.display = 'none';
+                document.getElementById('postForm').style.display = 'none';
+            }
+        }
+
+        // Обработчик отправки формы регистрации
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                token = data.token; // Сохранение токена
+                currentUser = username; // Сохранение имени пользователя
+                localStorage.setItem('token', token); // Сохранение токена в localStorage
+                localStorage.setItem('currentUser', currentUser); // Сохранение имени пользователя в localStorage
+                alert("Успешная регистрация!");
+
+                // Обновление интерфейса
+                updateUI();
+                loadPosts();
+            } else {
+                alert("Ошибка регистрации.");
+            }
+
+            // Очистка формы
+            document.getElementById('registerForm').reset();
+        });
+
+        // Обработчик отправки формы входа
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                token = data.token; // Сохранение токена
+                currentUser = username; // Сохранение имени пользователя
+                localStorage.setItem('token', token); // Сохранение токена в localStorage
+                localStorage.setItem('currentUser', currentUser); // Сохранение имени пользователя в localStorage
+                alert("Успешный вход!");
+
+                // Обновление интерфейса
+                updateUI();
+                loadPosts();
+            } else {
+                alert("Ошибка входа: неверные учетные данные.");
+            }
+
+            // Очистка формы
+            document.getElementById('loginForm').reset();
+        });
+
+        // Обработчик отправки формы добавления поста
+        document.getElementById('postForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+
+            await fetch('/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token, // Добавление токена в заголовок
+                },
+                body: JSON.stringify({ title, content }),
+            });
+
+            // Очистка формы и перезагрузка постов
+            document.getElementById('postForm').reset();
+            loadPosts();
+        });
+
+        // Обработчик для кнопки выхода
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            token = ''; // Очистка токена
+            currentUser = ''; // Очистка имени пользователя
+            localStorage.removeItem('token'); // Удаление токена из localStorage
+            localStorage.removeItem('currentUser'); // Удаление имени пользователя из localStorage
+            updateUI(); // Обновление интерфейса
+            loadPosts(); // Перезагрузка постов
+        });
+
+        // Загрузка постов и обновление интерфейса при загрузке страницы
+        loadPosts();
+        updateUI();
+    </script>
+</body>
+</html>
+
